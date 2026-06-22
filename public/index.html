@@ -1086,6 +1086,11 @@
     room: 'reef',
     peers: new Map(),
     remoteBullets: [],
+    sharedEnemies: [],
+    sharedWave: 1,
+    sharedRemaining: 0,
+    sharedTotal: 1,
+    lastSharedAt: 0,
     sendTimer: 0,
     ui: null
   };
@@ -1094,13 +1099,13 @@
     const panel = document.createElement('div');
     panel.className = 'mp-panel';
     panel.innerHTML = `
-      <h3>Online Co-op Lobby</h3>
+      <h3>Online 6-Player Co-op Lobby</h3>
       <div class="mp-line">
         <input id="mpRoomInput" maxlength="18" value="reef" placeholder="Lobby code" />
         <button id="mpJoinBtn">Join</button>
         <button class="secondary" id="mpLeaveBtn">Leave</button>
       </div>
-      <div class="mp-status" id="mpStatus">Run with <b>npm start</b>, then share the page URL and same lobby code.</div>
+      <div class="mp-status" id="mpStatus">Run with <b>npm start</b>. Same lobby = shared enemies and shared HP.</div>
     `;
     document.body.appendChild(panel);
     multiplayer.ui = {
@@ -1157,28 +1162,28 @@
         (msg.players || []).forEach(p => {
           if (p.id !== multiplayer.id) multiplayer.peers.set(p.id, p);
         });
-        setMultiplayerStatus(`Lobby <b>${msg.room}</b> joined. Players: ${msg.count}/2.`);
+        setMultiplayerStatus(`Lobby <b>${msg.room}</b> joined. Players: ${msg.count}/${msg.maxPlayers || 6}. Shared enemies active.`);
         toast(`Joined lobby ${msg.room}`);
         return;
       }
 
       if (msg.type === 'roomFull') {
         setMultiplayerStatus(`Lobby <b>${msg.room}</b> is full. Use another lobby code.`);
-        toast('That lobby already has 2 players.', 3600);
+        toast('That lobby already has 6 players.', 3600);
         socket.close();
         return;
       }
 
       if (msg.type === 'peerJoin') {
         if (msg.player && msg.player.id !== multiplayer.id) multiplayer.peers.set(msg.player.id, msg.player);
-        setMultiplayerStatus(`Lobby <b>${multiplayer.room}</b>. Players: ${msg.count}/2.`);
+        setMultiplayerStatus(`Lobby <b>${multiplayer.room}</b>. Players: ${msg.count}/${msg.maxPlayers || 6}.`);
         toast(`${msg.player?.name || 'Player'} joined your lobby.`);
         return;
       }
 
       if (msg.type === 'peerLeave') {
         multiplayer.peers.delete(msg.id);
-        setMultiplayerStatus(`Lobby <b>${multiplayer.room}</b>. Players: ${msg.count}/2.`);
+        setMultiplayerStatus(`Lobby <b>${multiplayer.room}</b>. Players: ${msg.count}/${msg.maxPlayers || 6}.`);
         toast('Other player left the lobby.');
         return;
       }
@@ -1206,6 +1211,46 @@
         return;
       }
 
+      if (msg.type === 'sharedState') {
+        multiplayer.sharedEnemies = Array.isArray(msg.enemies) ? msg.enemies : [];
+        multiplayer.sharedWave = msg.wave || 1;
+        multiplayer.sharedRemaining = msg.remaining || multiplayer.sharedEnemies.length;
+        multiplayer.sharedTotal = msg.total || Math.max(1, multiplayer.sharedRemaining);
+        multiplayer.lastSharedAt = performance.now();
+        if (state.mode === 'playing') {
+          state.wave = multiplayer.sharedWave;
+          state.waveTotal = multiplayer.sharedTotal;
+        }
+        return;
+      }
+
+      if (msg.type === 'enemyKilled') {
+        const x = Number(msg.x || 0), y = Number(msg.y || 0);
+        for (let i=0; i<18; i++) spawnParticle(x + rand(-12,12), y + rand(-12,12), rand(2,5), 'pop', rand(.25,.65), rand(70,240), msg.color || '#76f2d1');
+        addFloat('KO', x, y - 18, '#ffd166');
+        return;
+      }
+
+      if (msg.type === 'sharedReward') {
+        state.score += Math.floor(msg.score || 0);
+        if (msg.xp) gainXp(Math.max(1, Math.floor(msg.xp)));
+        if (msg.mat && state.stats[msg.mat] !== undefined) state.stats[msg.mat] += Math.max(1, Math.floor(msg.matCount || 1));
+        if (msg.item && typeof addInventoryItem === 'function') addInventoryItem(msg.item);
+        if (Number.isFinite(msg.x) && Number.isFinite(msg.y)) spawnPickup(msg.x, msg.y, msg.mat || 'xp', 1);
+        profileDirty = true;
+        return;
+      }
+
+      if (msg.type === 'playerHurt') {
+        if (state.mode === 'playing' && msg.id === multiplayer.id) damagePlayer(msg.amount || 4, { name: msg.source || 'a shared mob' });
+        return;
+      }
+
+      if (msg.type === 'waveStart') {
+        toast(`Co-op Wave ${msg.wave} begins — shared enemies online.`, 2200);
+        return;
+      }
+
       if (msg.type === 'error') {
         setMultiplayerStatus(msg.message || 'Multiplayer error.');
       }
@@ -1215,6 +1260,9 @@
       multiplayer.connected = false;
       multiplayer.id = null;
       multiplayer.peers.clear();
+      multiplayer.sharedEnemies = [];
+      multiplayer.sharedRemaining = 0;
+      multiplayer.sharedTotal = 1;
       setMultiplayerStatus('Disconnected. Join again to play co-op.');
     });
 
@@ -1232,6 +1280,9 @@
     multiplayer.id = null;
     multiplayer.peers.clear();
     multiplayer.remoteBullets = [];
+    multiplayer.sharedEnemies = [];
+    multiplayer.sharedRemaining = 0;
+    multiplayer.sharedTotal = 1;
     if (showToast) {
       setMultiplayerStatus('Left lobby.');
       toast('Left multiplayer lobby.');
@@ -1276,7 +1327,11 @@
       x: Math.round(state.player.x),
       y: Math.round(state.player.y),
       angle,
-      weapon: weaponId
+      weapon: weaponId,
+      weaponName: currentWeapon().name,
+      damage: Math.round(baseWeaponDamage ? baseWeaponDamage(1) : 18),
+      crit: state.stats.crit || 0,
+      power: state.stats.weaponPower || 1
     });
   }
 
@@ -1330,6 +1385,77 @@
       ctx.fillRect(peer.x - 26, peer.y - 27, 52, 5);
       ctx.fillStyle = '#76f2d1';
       ctx.fillRect(peer.x - 26, peer.y - 27, 52 * hpPct, 5);
+      ctx.restore();
+    }
+  }
+
+
+  function drawSharedEnemies() {
+    const enemies = multiplayer.sharedEnemies || [];
+    if (!enemies.length) return;
+    for (const e of enemies) {
+      if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) continue;
+      const hpPct = clamp((e.hp || 0) / Math.max(1, e.maxHp || 1), 0, 1);
+      const pulse = Math.sin(state.time * 4 + (e.id || 0).toString().length) * 0.08 + 1;
+      const r = (e.r || 18) * pulse;
+
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.rotate(e.angle || 0);
+      ctx.globalAlpha = .95;
+
+      if (e.finalBoss) {
+        const aura = ctx.createRadialGradient(0,0,r*.2,0,0,r*1.7);
+        aura.addColorStop(0, 'rgba(255,91,110,.36)');
+        aura.addColorStop(.55, 'rgba(197,139,255,.18)');
+        aura.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath(); ctx.arc(0,0,r*1.75,0,TAU); ctx.fill();
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.beginPath(); ctx.ellipse(0, r*.45, r*1.05, r*.5, 0, 0, TAU); ctx.fill();
+
+      const g = ctx.createLinearGradient(-r, -r, r, r);
+      g.addColorStop(0, e.elite ? '#ffd166' : '#c5fff0');
+      g.addColorStop(.5, e.color || '#76f2d1');
+      g.addColorStop(1, e.boss || e.finalBoss ? '#ff5b6e' : '#0b6171');
+      ctx.fillStyle = g;
+      ctx.strokeStyle = e.finalBoss ? '#ffd166' : 'rgba(2,15,22,.72)';
+      ctx.lineWidth = e.finalBoss ? 5 : e.boss ? 3 : 2;
+
+      if (e.boss || e.finalBoss) {
+        star(0, 0, e.finalBoss ? 12 : 9, r, r*.58);
+        ctx.fill(); ctx.stroke();
+        ctx.globalAlpha = .28;
+        ctx.beginPath(); ctx.arc(0,0,r*1.22,0,TAU); ctx.stroke();
+        ctx.globalAlpha = .95;
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.quadraticCurveTo(-r*.25, -r*.78, -r, -r*.38);
+        ctx.quadraticCurveTo(-r*.64, 0, -r, r*.38);
+        ctx.quadraticCurveTo(-r*.25, r*.78, r, 0);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        ctx.beginPath(); ctx.arc(r*.35, -r*.18, Math.max(2.3, r*.13), 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.save();
+      const w = clamp(r * (e.finalBoss ? 2.3 : e.boss ? 1.8 : 1.45), 38, 280);
+      const h = e.finalBoss ? 9 : e.boss ? 7 : 5;
+      const y = e.y - r - 18;
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(e.x - w/2, y, w, h);
+      ctx.fillStyle = e.finalBoss ? '#ff5b6e' : e.boss ? '#ffd166' : '#76f2d1';
+      ctx.fillRect(e.x - w/2, y, w * hpPct, h);
+      ctx.strokeStyle = 'rgba(255,255,255,.22)';
+      ctx.strokeRect(e.x - w/2, y, w, h);
+      ctx.textAlign = 'center';
+      ctx.font = e.finalBoss ? '800 16px Inter, system-ui, sans-serif' : e.boss ? '800 13px Inter, system-ui, sans-serif' : '700 10px Inter, system-ui, sans-serif';
+      ctx.fillStyle = '#ecfffb';
+      if (e.boss || e.finalBoss || r > 24) ctx.fillText(e.name || 'Shared Mob', e.x, y - 4);
       ctx.restore();
     }
   }
@@ -2753,6 +2879,26 @@
     p.angle = angleTo(p, aim);
     if (mouse.down) shoot();
 
+    if (multiplayer.connected) {
+      // In co-op mode the server owns enemies, wave HP, and kills so both players fight the same mobs.
+      state.enemies.length = 0;
+      state.enemiesToSpawn = 0;
+      state.wave = multiplayer.sharedWave || state.wave;
+      state.waveTotal = multiplayer.sharedTotal || state.waveTotal || 1;
+      updateBullets(dt);
+      updatePickups(dt);
+      updateParticles(dt);
+      updateFloats(dt);
+      updateMultiplayer(dt);
+      state.camera.x = lerp(state.camera.x, p.x - W / 2, 1 - Math.pow(0.0005, dt));
+      state.camera.y = lerp(state.camera.y, p.y - H / 2, 1 - Math.pow(0.0005, dt));
+      state.camera.x = clamp(state.camera.x, 0, Math.max(0, world.w - W));
+      state.camera.y = clamp(state.camera.y, 0, Math.max(0, world.h - H));
+      state.shake = Math.max(0, state.shake - dt * 30);
+      if (profileDirty && Date.now() - lastProfileSave > 1200) saveProgress(true);
+      return;
+    }
+
     updateSpawner(dt);
     updatePortals(dt);
     updateBullets(dt);
@@ -3562,7 +3708,7 @@
     drawPickups();
     drawPortals();
     drawBullets(false);
-    drawEnemies();
+    if (multiplayer.connected) drawSharedEnemies(); else drawEnemies();
     drawPlayer();
     drawRemotePlayers();
     drawBullets(true);
@@ -4165,15 +4311,16 @@
     el.coral.textContent = state.stats.coral;
     el.scale.textContent = state.stats.scales;
     if (el.magnet) el.magnet.textContent = Math.floor(state.stats.magnet || 0);
-    const remaining = Math.max(0, state.enemiesToSpawn + state.enemies.length);
-    const total = Math.max(1, state.waveTotal || remaining || 1);
+    const coop = multiplayer.connected;
+    const remaining = coop ? Math.max(0, multiplayer.sharedRemaining || 0) : Math.max(0, state.enemiesToSpawn + state.enemies.length);
+    const total = Math.max(1, coop ? (multiplayer.sharedTotal || remaining || 1) : (state.waveTotal || remaining || 1));
     const cleared = clamp(1 - remaining / total, 0, 1);
-    if (el.mob) el.mob.textContent = remaining;
-    if (el.threat) el.threat.textContent = state.inDungeon ? 'SPACE' : state.enemies.some(e => e.finalBoss) ? 'FINAL' : remaining > 28 ? 'Swarm' : remaining > 0 ? 'Hunting' : 'Clear';
+    if (el.mob) el.mob.textContent = coop ? `${remaining} shared` : remaining;
+    if (el.threat) el.threat.textContent = coop ? (multiplayer.sharedEnemies.some(e => e.finalBoss) ? 'CO-OP FINAL' : multiplayer.sharedEnemies.some(e => e.boss) ? 'CO-OP BOSS' : remaining > 0 ? 'Shared Hunt' : 'Clear') : state.inDungeon ? 'SPACE' : state.enemies.some(e => e.finalBoss) ? 'FINAL' : remaining > 28 ? 'Swarm' : remaining > 0 ? 'Hunting' : 'Clear';
     if (el.account) el.account.textContent = activeAccount ? activeAccount : 'Guest';
-    if (el.realm) el.realm.textContent = state.inDungeon ? `Space ${state.dungeonWave}/3` : 'Reef';
-    if (el.waveLabel) el.waveLabel.textContent = state.inDungeon ? `Space Rift ${state.dungeonWave}/3` : `Wave ${state.wave}`;
-    if (el.enemyLeft) el.enemyLeft.textContent = `${remaining} left`;
+    if (el.realm) el.realm.textContent = multiplayer.connected ? 'Co-op Reef' : state.inDungeon ? `Space ${state.dungeonWave}/3` : 'Reef';
+    if (el.waveLabel) el.waveLabel.textContent = multiplayer.connected ? `Co-op Wave ${multiplayer.sharedWave || state.wave}` : state.inDungeon ? `Space Rift ${state.dungeonWave}/3` : `Wave ${state.wave}`;
+    if (el.enemyLeft) el.enemyLeft.textContent = multiplayer.connected ? `${remaining} shared left` : `${remaining} left`;
     if (el.waveFill) el.waveFill.style.width = `${cleared * 100}%`;
     el.hpText.textContent = `${Math.max(0, Math.ceil(state.player.hp))} / ${Math.ceil(state.stats.maxHp)}`;
     el.hpFill.style.width = `${clamp(state.player.hp / state.stats.maxHp, 0, 1) * 100}%`;

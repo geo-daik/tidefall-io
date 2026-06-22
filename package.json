@@ -1,8 +1,8 @@
 {
-  "name": "tidefall-io-2player-lobby",
+  "name": "tidefall-io-6player-coop",
   "version": "1.0.0",
   "private": true,
-  "description": "Tidefall.io two-player WebSocket lobby server",
+  "description": "Tidefall.io six-player shared-enemy WebSocket co-op server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
