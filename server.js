@@ -40,42 +40,128 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ server });
 const rooms = new Map();
 
-const enemyCatalog = [
-  { kind:'nibber', name:'Shared Nibber', hp:55, speed:125, r:15, damage:6, score:22, xp:5, color:'#73d9ff', mat:'pearls' },
-  { kind:'crab', name:'Co-op Iron Crab', hp:105, speed:80, r:21, damage:9, score:38, xp:8, color:'#ff8d7a', mat:'coral' },
-  { kind:'eel', name:'Glass Sync Eel', hp:78, speed:165, r:14, damage:8, score:42, xp:9, color:'#d8ff6e', mat:'scales' },
-  { kind:'jelly', name:'Moon Jelly Pair', hp:90, speed:76, r:23, damage:7, score:50, xp:10, color:'#9ff7ff', mat:'pearls' },
-  { kind:'shark', name:'Razor Shark', hp:135, speed:148, r:26, damage:13, score:85, xp:15, color:'#8cc7ff', mat:'scales' },
-  { kind:'angler', name:'Lantern Angler', hp:145, speed:92, r:25, damage:10, score:92, xp:16, color:'#ffd166', mat:'pearls' },
-  { kind:'squid', name:'Ink Rift Squid', hp:132, speed:112, r:27, damage:11, score:105, xp:18, color:'#b490ff', mat:'scales' },
-  { kind:'wasp', name:'Reef Wasp', hp:72, speed:205, r:13, damage:9, score:58, xp:11, color:'#fff275', mat:'pearls' },
-  { kind:'snapper', name:'Blood Snapper', hp:160, speed:132, r:25, damage:15, score:110, xp:19, color:'#ff5b6e', mat:'scales' },
-  { kind:'ray', name:'Volt Stingray', hp:190, speed:96, r:32, damage:16, score:135, xp:23, color:'#9ff7ff', mat:'pearls' },
-  { kind:'turtle', name:'Ancient Turtle Elite', hp:420, speed:58, r:40, damage:21, score:260, xp:42, color:'#6ee7a8', mat:'coral', elite:true },
-  { kind:'manta', name:'Manta Warden Elite', hp:380, speed:105, r:38, damage:20, score:245, xp:40, color:'#ffd166', mat:'pearls', elite:true },
-  { kind:'leviathan', name:'Shared Leviathan Boss', hp:1600, speed:70, r:70, damage:28, score:900, xp:125, color:'#ff5b6e', mat:'scales', boss:true },
-  { kind:'kraken', name:'Twin Kraken Boss', hp:2250, speed:58, r:82, damage:32, score:1250, xp:165, color:'#c58bff', mat:'pearls', boss:true },
-  { kind:'titan', name:'Co-op Coral Titan', hp:2850, speed:45, r:92, damage:35, score:1500, xp:205, color:'#ff6fae', mat:'coral', boss:true },
-  { kind:'final', name:'Abyss Parliament Final Boss', hp:8500, speed:30, r:260, damage:45, score:5000, xp:650, color:'#ff5b6e', mat:'scales', boss:true, finalBoss:true }
-];
 
-const generatedNames = ['Abyss', 'Rift', 'Nova', 'Coral', 'Ghost', 'Solar', 'Void', 'Crystal', 'Ember', 'Sky', 'Deep', 'Storm'];
-const generatedBodies = ['Minnow', 'Crawler', 'Ray', 'Snapper', 'Serpent', 'Warden', 'Drifter', 'Leaper', 'Maw', 'Skimmer'];
-for (let i = 0; i < 60; i++) {
-  const tier = i / 60;
+const enemyCatalog = [];
+function addEnemy(def) {
   enemyCatalog.push({
-    kind: `gen${i}`,
-    name: `${generatedNames[i % generatedNames.length]} ${generatedBodies[(i * 7) % generatedBodies.length]}`,
-    hp: 70 + i * 5,
-    speed: 80 + (i % 9) * 11,
-    r: 14 + (i % 11),
-    damage: 7 + Math.floor(tier * 16),
-    score: 42 + i * 5,
-    xp: 8 + Math.floor(i * .7),
-    color: ['#76f2d1','#ffd166','#9ff7ff','#c58bff','#ff8d7a','#6ee7a8'][i % 6],
-    mat: ['pearls','coral','scales'][i % 3]
+    realm: 'reef',
+    role: 'swarm',
+    type: def.kind,
+    ...def
   });
 }
+
+const biomePalettes = {
+  reef: {
+    prefix: ['Reef', 'Kelp', 'Pearl', 'Tide', 'Shell', 'Lagoon', 'Coral', 'Azure'],
+    body: ['Minnow', 'Snapper', 'Crab', 'Eel', 'Jelly', 'Puffer', 'Angler', 'Manta'],
+    colors: ['#73d9ff','#76f2d1','#ffd166','#9ff7ff','#ff8d7a','#6ee7a8'],
+    types: ['fish','crab','eel','jelly','puffer','angler','manta','shark'],
+    roles: ['swarm','bruiser','weaver','pulse','burster','ranged','elite','charger']
+  },
+  space: {
+    prefix: ['Nova', 'Orbit', 'Comet', 'Star', 'Astro', 'Lunar', 'Solar', 'Cosmic'],
+    body: ['Drone', 'Wisp', 'Ray', 'Serpent', 'Skimmer', 'Meteorling', 'Watcher', 'Leaper'],
+    colors: ['#8ca7ff','#c58bff','#eaffff','#ffd166','#7f6bff','#ff86c8'],
+    types: ['starfish','jelly','ray','eel','barracuda','squid','nautilus','fish'],
+    roles: ['ranged','pulse','skirmisher','weaver','charger','summoner','tankRanged','swarm']
+  },
+  sky: {
+    prefix: ['Sky', 'Cloud', 'Tempest', 'Zephyr', 'Wing', 'Halo', 'Aero', 'Storm'],
+    body: ['Manta', 'Kite', 'Ray', 'Drifter', 'Eel', 'Shrike', 'Glider', 'Gullfish'],
+    colors: ['#b8f7ff','#ffffff','#79a7ff','#ffd166','#9ff7ff','#c5fff0'],
+    types: ['manta','fish','ray','jelly','eel','barracuda','shrimp','angler'],
+    roles: ['elite','swarm','skirmisher','pulse','weaver','charger','ambusher','ranged']
+  },
+  ember: {
+    prefix: ['Ember', 'Magma', 'Ash', 'Lava', 'Cinder', 'Furnace', 'Char', 'Blaze'],
+    body: ['Lobster', 'Urchin', 'Crab', 'Puffer', 'Snapper', 'Warden', 'Eel', 'Maw'],
+    colors: ['#ff7043','#ff5b6e','#ffd166','#ff8d7a','#ff9f43','#ff6fae'],
+    types: ['crab','urchin','puffer','fish','shark','clam','eel','squid'],
+    roles: ['bruiser','turret','burster','hunter','charger','tank','weaver','skirmisher']
+  },
+  crystal: {
+    prefix: ['Crystal', 'Prism', 'Glass', 'Quartz', 'Shard', 'Mirror', 'Opal', 'Gem'],
+    body: ['Jelly', 'Eel', 'Ray', 'Nautilus', 'Shrimp', 'Clam', 'Serpent', 'Wisp'],
+    colors: ['#eaffff','#b8f7ff','#d8b4ff','#c5fff0','#9ff7ff','#ffd166'],
+    types: ['jelly','eel','ray','nautilus','shrimp','clam','barracuda','fish'],
+    roles: ['pulse','weaver','skirmisher','tankRanged','ambusher','tank','charger','swarm']
+  },
+  void: {
+    prefix: ['Void', 'Abyss', 'Null', 'Rift', 'Shadow', 'Dread', 'Black', 'Night'],
+    body: ['Maw', 'Squid', 'Serpent', 'Wraith', 'Urchin', 'Leviathan', 'Hunter', 'Manta'],
+    colors: ['#7f6bff','#c58bff','#2d3142','#ff5b6e','#b490ff','#ff86c8'],
+    types: ['shark','squid','eel','shrimp','urchin','boss','barracuda','manta'],
+    roles: ['hunter','summoner','weaver','ambusher','turret','boss','charger','elite']
+  },
+  deepsea: {
+    prefix: ['Deep', 'Trench', 'Abyssal', 'Pressure', 'Sunken', 'Ancient', 'Midnight', 'Fossil'],
+    body: ['Angler', 'Crab', 'Nautilus', 'Eel', 'Leviathan', 'Puffer', 'Titan', 'Ray'],
+    colors: ['#0bd3d3','#76f2d1','#ffd166','#8cc7ff','#c58bff','#6ee7a8'],
+    types: ['angler','crab','nautilus','eel','boss','puffer','clam','ray'],
+    roles: ['ranged','bruiser','tankRanged','weaver','boss','burster','tank','skirmisher']
+  }
+};
+
+function biomeFromRealm(raw) {
+  const r = String(raw || '').toLowerCase().replace(/\s+/g, '');
+  if (r.includes('space')) return 'space';
+  if (r.includes('sky')) return 'sky';
+  if (r.includes('ember') || r.includes('trench')) return 'ember';
+  if (r.includes('crystal') || r.includes('grotto')) return 'crystal';
+  if (r.includes('void')) return 'void';
+  if (r.includes('deep')) return 'deepsea';
+  return 'reef';
+}
+
+function addBiomeSpecies(biome, count, baseTier = 1) {
+  const p = biomePalettes[biome] || biomePalettes.reef;
+  for (let i = 0; i < count; i++) {
+    const tier = baseTier + Math.floor(i / 10);
+    const type = p.types[i % p.types.length];
+    const role = p.roles[i % p.roles.length];
+    const bossLike = role === 'boss';
+    const elite = role === 'elite' || (tier >= 5 && i % 13 === 0);
+    addEnemy({
+      kind: `${biome}_${i}`,
+      realm: biome,
+      type,
+      role,
+      name: `${p.prefix[i % p.prefix.length]} ${p.body[(i * 5) % p.body.length]}`,
+      hp: Math.floor((bossLike ? 650 : elite ? 230 : 42) + tier * (bossLike ? 160 : elite ? 34 : 12) + (i % 7) * 7),
+      speed: Math.floor((bossLike ? 34 : role === 'charger' ? 112 : role === 'swarm' ? 118 : role === 'ambusher' ? 122 : role === 'tank' ? 42 : 76) + Math.min(45, tier * 3)),
+      r: Math.floor((bossLike ? 62 : elite ? 34 : 13) + (i % 8) * (bossLike ? 2.5 : elite ? 1.2 : .9)),
+      damage: Math.floor((bossLike ? 26 : elite ? 17 : 6) + tier * (bossLike ? 3 : elite ? 2 : 1)),
+      score: Math.floor((bossLike ? 600 : elite ? 150 : 24) + tier * 18 + i * 2),
+      xp: Math.floor((bossLike ? 80 : elite ? 28 : 5) + tier * 2),
+      color: p.colors[i % p.colors.length],
+      mat: ['pearls','coral','scales'][i % 3],
+      elite,
+      boss: bossLike,
+      finalBoss: false
+    });
+  }
+}
+
+const coreEnemies = [
+  { kind:'nibber', realm:'reef', type:'fish', role:'swarm', name:'Reef Nibber', hp:46, speed:104, r:15, damage:5, score:22, xp:5, color:'#73d9ff', mat:'pearls' },
+  { kind:'crab', realm:'reef', type:'crab', role:'bruiser', name:'Iron Crab', hp:92, speed:58, r:21, damage:8, score:38, xp:8, color:'#ff8d7a', mat:'coral' },
+  { kind:'eel', realm:'reef', type:'eel', role:'weaver', name:'Glass Eel', hp:70, speed:126, r:14, damage:7, score:42, xp:9, color:'#d8ff6e', mat:'scales' },
+  { kind:'jelly', realm:'reef', type:'jelly', role:'pulse', name:'Moon Jelly', hp:86, speed:54, r:23, damage:6, score:50, xp:10, color:'#9ff7ff', mat:'pearls' },
+  { kind:'shark', realm:'reef', type:'shark', role:'charger', name:'Razor Shark', hp:125, speed:104, r:26, damage:12, score:85, xp:15, color:'#8cc7ff', mat:'scales' },
+  { kind:'angler', realm:'deepsea', type:'angler', role:'ranged', name:'Deep Lantern Angler', hp:135, speed:70, r:25, damage:9, score:92, xp:16, color:'#ffd166', mat:'pearls' },
+  { kind:'squid', realm:'void', type:'squid', role:'summoner', name:'Ink Rift Squid', hp:125, speed:82, r:27, damage:10, score:105, xp:18, color:'#b490ff', mat:'scales' },
+  { kind:'wasp', realm:'sky', type:'barracuda', role:'charger', name:'Sky Wasp', hp:64, speed:132, r:13, damage:8, score:58, xp:11, color:'#fff275', mat:'pearls' },
+  { kind:'ray', realm:'space', type:'ray', role:'skirmisher', name:'Volt Star Ray', hp:175, speed:76, r:32, damage:14, score:135, xp:23, color:'#9ff7ff', mat:'pearls' },
+  { kind:'turtle', realm:'reef', type:'turtle', role:'tank', name:'Ancient Turtle Elite', hp:390, speed:42, r:40, damage:19, score:260, xp:42, color:'#6ee7a8', mat:'coral', elite:true },
+  { kind:'manta', realm:'sky', type:'manta', role:'elite', name:'Manta Warden Elite', hp:350, speed:74, r:38, damage:18, score:245, xp:40, color:'#ffd166', mat:'pearls', elite:true },
+  { kind:'leviathan', realm:'deepsea', type:'boss', role:'boss', name:'Leviathan Boss', hp:1450, speed:44, r:70, damage:24, score:900, xp:125, color:'#ff5b6e', mat:'scales', boss:true },
+  { kind:'kraken', realm:'void', type:'squid', role:'boss', name:'Kraken Boss', hp:2050, speed:38, r:82, damage:28, score:1250, xp:165, color:'#c58bff', mat:'pearls', boss:true },
+  { kind:'titan', realm:'ember', type:'clam', role:'boss', name:'Ember Coral Titan', hp:2650, speed:30, r:92, damage:31, score:1500, xp:205, color:'#ff6fae', mat:'coral', boss:true },
+  { kind:'final', realm:'void', type:'boss', role:'finalBoss', name:'Abyss Parliament Final Boss', hp:8200, speed:22, r:260, damage:38, score:5000, xp:650, color:'#ff5b6e', mat:'scales', boss:true, finalBoss:true }
+];
+for (const e of coreEnemies) addEnemy(e);
+for (const biome of ['reef','space','sky','ember','crystal','void','deepsea']) addBiomeSpecies(biome, 28);
 
 function rand(a, b) { return Math.random() * (b - a) + a; }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -150,11 +236,27 @@ function pushOutOfSafeZone(pos, extra = 180) {
   };
 }
 
+
+function activeRoomBiome(room) {
+  const players = combatPlayerArray(room);
+  if (!players.length) return 'reef';
+  const counts = Object.create(null);
+  for (const p of players) {
+    const b = biomeFromRealm(p.state && p.state.realm);
+    counts[b] = (counts[b] || 0) + 1;
+  }
+  return Object.entries(counts).sort((a,b) => b[1] - a[1])[0]?.[0] || 'reef';
+}
+function playerCountScale(room, boss = false) {
+  const n = Math.max(1, combatPlayerArray(room).length || room.clients.size || 1);
+  return boss ? 1 + (n - 1) * 0.48 : 1 + (n - 1) * 0.28;
+}
+
 function startWave(room) {
   if (combatPlayerArray(room).length === 0) return;
   room.wave += 1;
   room.enemies = [];
-  room.total = Math.min(32 + room.wave * 8, 260);
+  room.total = Math.min(24 + room.wave * 5 + combatPlayerArray(room).length * 4, 150);
   room.remainingToSpawn = room.total;
   room.spawnTimer = 0.1;
   room.waveBreak = 0;
@@ -164,28 +266,41 @@ function startWave(room) {
     spawnEnemy(room, 'final');
     room.remainingToSpawn = Math.max(0, room.remainingToSpawn - 1);
   } else if (room.wave % 5 === 0) {
-    const bosses = ['leviathan', 'kraken', 'titan'];
+    const biome = activeRoomBiome(room);
+    const bossesByBiome = {
+      reef: ['leviathan'],
+      deepsea: ['leviathan'],
+      space: ['space_5','space_13','space_21'],
+      sky: ['manta'],
+      ember: ['titan'],
+      crystal: ['crystal_5','crystal_13','crystal_21'],
+      void: ['kraken']
+    };
+    const bosses = bossesByBiome[biome] || ['leviathan', 'kraken', 'titan'];
     spawnEnemy(room, bosses[(Math.floor(room.wave / 5) - 1) % bosses.length]);
     room.remainingToSpawn = Math.max(0, room.remainingToSpawn - 1);
   }
 }
+
 function chooseType(room, forcedKind) {
   if (forcedKind) return enemyCatalog.find(e => e.kind === forcedKind) || enemyCatalog[0];
+  const biome = activeRoomBiome(room);
   const pool = enemyCatalog.filter(e => {
     if (e.finalBoss || e.boss) return false;
-    if (e.elite) return room.wave >= 4 && Math.random() < .22;
+    if (e.realm !== biome && e.realm !== 'all') return false;
+    if (e.elite) return room.wave >= 4 && Math.random() < .15;
     return true;
   });
-  const max = clamp(8 + room.wave * 3, 8, pool.length);
-  return pool[Math.floor(rand(0, max))] || pool[0];
+  const max = clamp(7 + room.wave * 2, 7, pool.length);
+  return pool[Math.floor(rand(0, max))] || enemyCatalog[0];
 }
 function spawnEnemy(room, forcedKind = null) {
   const base = chooseType(room, forcedKind);
   const center = averageCombatPlayerPos(room);
   const a = rand(0, Math.PI * 2);
-  const dist = base.finalBoss ? rand(900, 1300) : base.boss ? rand(700, 1050) : rand(520, 950);
-  const scale = 1 + Math.max(0, room.wave - 1) * 0.12;
-  const hpScale = base.finalBoss ? 1 + room.wave * .08 : base.boss ? 1 + room.wave * .055 : scale;
+  const dist = base.finalBoss ? rand(1200, 1700) : base.boss ? rand(950, 1350) : rand(780, 1250);
+  const scale = 1 + Math.max(0, room.wave - 1) * 0.075;
+  const hpScale = (base.finalBoss ? 1 + room.wave * .065 : base.boss ? 1 + room.wave * .045 : scale) * playerCountScale(room, base.boss || base.finalBoss);
   const r = Math.floor(base.r * (base.finalBoss ? 1 : base.boss ? 1.04 : 1));
   let spawn = {
     x: clamp(center.x + Math.cos(a) * dist, 120, WORLD.w - 120),
@@ -206,8 +321,8 @@ function spawnEnemy(room, forcedKind = null) {
     r,
     hp: Math.floor(base.hp * hpScale),
     maxHp: Math.floor(base.hp * hpScale),
-    speed: Math.floor(base.speed * (1 + room.wave * .018)),
-    damage: Math.floor(base.damage * (1 + room.wave * .028)),
+    speed: Math.floor(base.speed * (1 + room.wave * .006)),
+    damage: Math.floor(base.damage * (1 + room.wave * .014)),
     score: Math.floor(base.score * (1 + room.wave * .08)),
     xp: Math.floor(base.xp * (1 + room.wave * .06)),
     color: base.color,
@@ -327,15 +442,15 @@ function updateRoom(room, dt) {
 
   if (room.wave === 0 || (room.remainingToSpawn <= 0 && room.enemies.length === 0 && room.total === 0)) startWave(room);
 
-  const maxOnScreen = Math.min(28 + room.wave * 4 + combatPlayers.length * 6, 145);
+  const maxOnScreen = Math.min(18 + room.wave * 3 + combatPlayers.length * 5, 95);
   room.spawnTimer -= dt;
   if (room.remainingToSpawn > 0 && room.spawnTimer <= 0 && room.enemies.length < maxOnScreen) {
-    let burst = Math.min(2 + Math.floor(room.wave / 3), 12);
+    let burst = Math.min(1 + Math.floor(room.wave / 4), 6);
     while (burst-- > 0 && room.remainingToSpawn > 0 && room.enemies.length < maxOnScreen) {
       spawnEnemy(room);
       room.remainingToSpawn--;
     }
-    room.spawnTimer = Math.max(0.08, 0.42 - room.wave * 0.008);
+    room.spawnTimer = Math.max(0.16, 0.72 - room.wave * 0.006);
   }
 
   if (!combatPlayers.length) return;
@@ -361,9 +476,9 @@ function updateRoom(room, dt) {
     const ax = dx / len + avoid.x * 1.6;
     const ay = dy / len + avoid.y * 1.6;
     const al = Math.hypot(ax, ay) || 1;
-    const speed = e.speed * (e.finalBoss ? .55 : e.boss ? .75 : 1);
-    e.vx = e.vx * Math.pow(.05, dt) + ax / al * speed * dt * 7.8;
-    e.vy = e.vy * Math.pow(.05, dt) + ay / al * speed * dt * 7.8;
+    const speed = e.speed * (e.finalBoss ? .38 : e.boss ? .56 : e.elite ? .78 : .72);
+    e.vx = e.vx * Math.pow(.035, dt) + ax / al * speed * dt * 4.2;
+    e.vy = e.vy * Math.pow(.035, dt) + ay / al * speed * dt * 4.2;
     e.x = clamp(e.x + e.vx * dt, e.r, WORLD.w - e.r);
     e.y = clamp(e.y + e.vy * dt, e.r, WORLD.h - e.r);
     e.angle = Math.atan2(e.vy || dy, e.vx || dx);
@@ -371,7 +486,7 @@ function updateRoom(room, dt) {
     if (best < e.r + 22) {
       const now = Date.now();
       if (!target.nextHurtAt || now >= target.nextHurtAt) {
-        target.nextHurtAt = now + (e.finalBoss ? 900 : e.boss ? 700 : 520);
+        target.nextHurtAt = now + (e.finalBoss ? 1450 : e.boss ? 1100 : e.elite ? 850 : 760);
         safeSend(target, { type:'playerHurt', id: target.id, amount: e.damage, source: e.name });
       }
     }
@@ -392,7 +507,7 @@ function serializeState(room) {
     total: room.total || 1,
     remaining,
     enemies: room.enemies.map(e => ({
-      id:e.id, name:e.name, x:Math.round(e.x), y:Math.round(e.y), angle:e.angle,
+      id:e.id, kind:e.kind, type:e.type, role:e.role, realm:e.realm, name:e.name, x:Math.round(e.x), y:Math.round(e.y), angle:e.angle,
       r:e.r, hp:Math.max(0, Math.round(e.hp)), maxHp:e.maxHp, color:e.color,
       elite:e.elite, boss:e.boss, finalBoss:e.finalBoss, hit:e.hit
     }))

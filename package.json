@@ -1,8 +1,8 @@
 {
-  "name": "tidefall-io-6player-safe-plaza-coop",
+  "name": "tidefall-io-6player-biome-creatures-fix",
   "version": "1.0.0",
   "private": true,
-  "description": "Tidefall.io six-player shared-enemy co-op server with safe plaza fix",
+  "description": "Tidefall.io six-player shared-enemy co-op server with biome creature rendering and balanced enemy speed",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
