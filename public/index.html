@@ -1252,6 +1252,16 @@
         if (msg.xp) gainXp(Math.max(1, Math.floor(msg.xp)));
         if (msg.mat && state.stats[msg.mat] !== undefined) state.stats[msg.mat] += Math.max(1, Math.floor(msg.matCount || 1));
         if (msg.item && typeof addInventoryItem === 'function') addInventoryItem(msg.item);
+        if (msg.weaponDrop && Number.isFinite(msg.x) && Number.isFinite(msg.y)) {
+          const wid = msg.weaponDrop.id || choice(eligibleGroundWeapons ? eligibleGroundWeapons() : weaponOrder);
+          const wrarity = msg.weaponDrop.rarity || 'common';
+          if (typeof spawnWeaponDrop === 'function') {
+            spawnWeaponDrop(msg.x + rand(-26, 26), msg.y + rand(-26, 26), wid, wrarity);
+            toast(`Weapon drop from ${msg.weaponDrop.source || 'co-op mob'}!`, 2200);
+          } else if (typeof unlockWeapon === 'function') {
+            unlockWeapon(wid, true);
+          }
+        }
         if (Number.isFinite(msg.x) && Number.isFinite(msg.y)) spawnPickup(msg.x, msg.y, msg.mat || 'xp', 1);
         profileDirty = true;
         return;
@@ -4843,7 +4853,7 @@
     }).join('');
     const section = document.createElement('div');
     section.className = 'inventory-section';
-    section.innerHTML = `<h3>Collected Weapons</h3><p style="margin-top:0;color:var(--muted)">Weapons now drop on the ground from mobs, bosses, and space dungeons. Duplicate drops become weapon scrap. Weapon scrap: <b>${state.stats.weaponScrap || 0}</b>.</p>${cards ? `<div class="inventory-grid">${cards}</div>` : `<div class="inventory-empty">No weapons collected yet.</div>`}`;
+    section.innerHTML = `<h3>Collected Weapons</h3><p style="margin-top:0;color:var(--muted)">Weapons now drop on the ground from mobs, shared co-op enemies, bosses, and space dungeons. Duplicate drops become weapon scrap. Weapon scrap: <b>${state.stats.weaponScrap || 0}</b>.</p>${cards ? `<div class="inventory-grid">${cards}</div>` : `<div class="inventory-empty">No weapons collected yet.</div>`}`;
     el.inventoryContent.prepend(section);
     section.querySelectorAll('[data-equip-weapon]').forEach(btn => btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-equip-weapon');

@@ -1,8 +1,8 @@
 {
-  "name": "tidefall-io-6player-old-biomes-restored",
+  "name": "tidefall-io-6player-weapon-drops-restored",
   "version": "1.0.0",
   "private": true,
-  "description": "Tidefall.io six-player shared-enemy co-op with restored original biome creature models",
+  "description": "Tidefall.io six-player shared-enemy co-op with restored weapon ground drops",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

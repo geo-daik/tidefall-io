@@ -449,6 +449,37 @@ function rewardItem(room, e) {
     count: 1
   };
 }
+
+const coopWeaponIds = [
+  'tideSMG','coralShotgun','anchorCannon','pearlSplitter','stormTrident','jellyZapper',
+  'urchinMines','squidInkBombs','mantaBoomerang','sharkRailgun','clamMortar','starfishSwarm',
+  'pufferFlak','turtleShells','abyssVortex','leviathanBeam','krakenWhip','moonNeedler','reefLaser',
+  'currentCycler','abyssHarpoon','coralComet','reefSaw','pearlCyclone','sirenNotes','moonShardRifle',
+  'stormMinefield','voidPrism','inkCyclone','starLance'
+];
+
+function rewardWeaponDrop(room, enemy, share = 1) {
+  const roll = Math.random();
+  let chance = enemy.finalBoss ? 1.0 : enemy.boss ? 0.58 : enemy.elite ? 0.16 : 0.028;
+  chance += Math.min(0.08, room.wave * 0.0025);
+  chance *= clamp(0.55 + share * 0.65, 0.55, 1.2);
+  if (roll > chance) return null;
+
+  let pool = coopWeaponIds.slice();
+  if (!enemy.boss && !enemy.elite && room.wave < 6) {
+    pool = pool.slice(0, 13);
+  } else if (!enemy.boss && room.wave < 12) {
+    pool = pool.slice(0, 22);
+  }
+
+  const id = pool[Math.floor(rand(0, pool.length))] || 'tideSMG';
+  return {
+    id,
+    rarity: rarityByWave(room.wave, enemy.boss || enemy.finalBoss),
+    source: enemy.name || 'Shared Enemy'
+  };
+}
+
 function killEnemy(room, enemy) {
   const idx = room.enemies.indexOf(enemy);
   if (idx >= 0) room.enemies.splice(idx, 1);
@@ -466,6 +497,7 @@ function killEnemy(room, enemy) {
       mat: enemy.mat,
       matCount: enemy.boss ? 3 : enemy.elite ? 2 : 1,
       item: Math.random() < (enemy.finalBoss ? 1 : enemy.boss ? .8 : enemy.elite ? .32 : .10) ? rewardItem(room, enemy) : null,
+      weaponDrop: rewardWeaponDrop(room, enemy, share),
       x: enemy.x,
       y: enemy.y
     });

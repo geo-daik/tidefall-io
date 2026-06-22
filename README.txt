@@ -1,16 +1,24 @@
-Tidefall.io — 6 Player Co-op, Old Biomes Restored
+Tidefall.io — 6 Player Co-op, Old Biomes + Weapon Drops Restored
 
-This build keeps the stable 6-player shared-enemy multiplayer, but restores the old creature model system and biome pools.
+This patch fixes the missing weapon drops in multiplayer.
 
-Fixes:
-- Removed the bad generic co-op mob rendering.
-- Re-added old creature visuals: fish, crab, eel, puffer, jelly, shark, angler, urchin, squid, turtle, manta, barracuda, stingray, clam, nautilus, shrimp, siren, bosses, and final bosses.
-- Re-added old biome creature pools:
-  Deep Sea, Reef, Space, Sky, Ember, Crystal, Void.
-- The server now sends each enemy's old model type/role/realm to the browser.
-- Biomes should spawn their own creature families again.
-- Spawn amount is back up: bigger waves and more mobs on screen.
-- 6-player lobby, shared enemy HP, shared waves, and safe plaza are still enabled.
+Why it happened:
+- In single-player, the browser killed enemies locally and called maybeDropWeaponLoot().
+- In the shared-enemy co-op build, the server kills enemies instead.
+- That meant the old browser-only weapon drop function was bypassed.
+
+Fix:
+- The server now rolls weapon drops when shared enemies die.
+- The reward message sends weaponDrop data to the player.
+- The browser spawns that weapon as ground loot near the killed enemy.
+- Duplicate weapon drops still convert into weapon scrap.
+- Old biome creature models and 6-player shared HP remain enabled.
+
+Drop tuning:
+- Normal mobs: low chance.
+- Elites: much better chance.
+- Bosses: high chance.
+- Final bosses: guaranteed weapon drop.
 
 How to update Render:
 1. Unzip this build.
@@ -20,9 +28,5 @@ How to update Render:
    README.txt
    public/index.html
 3. Commit changes.
-4. Let Render redeploy, or click Manual Deploy → Deploy latest commit.
-5. Hard refresh the game page after deploy.
-
-Progress:
-- Local/browser accounts should survive.
-- Active lobby/wave resets after redeploy.
+4. Let Render redeploy, or use Manual Deploy → Deploy latest commit.
+5. Hard refresh the game page after deployment.
