@@ -1,8 +1,8 @@
 {
-  "name": "tidefall-io-6player-coop",
+  "name": "tidefall-io-6player-safe-plaza-coop",
   "version": "1.0.0",
   "private": true,
-  "description": "Tidefall.io six-player shared-enemy WebSocket co-op server",
+  "description": "Tidefall.io six-player shared-enemy co-op server with safe plaza fix",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

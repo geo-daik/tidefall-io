@@ -1,47 +1,28 @@
-Tidefall.io — 6 Player Shared-Enemy Co-op Server Build
+Tidefall.io — 6 Player Shared-Enemy Co-op Server Build, Safe Plaza Fix
 
-This is the 6-player co-op lobby version.
+This version fixes the bug where co-op enemies spawned inside the Deep Sea Plaza.
 
 What works:
 - Up to 6 players can join the same lobby code.
-- Players see each other in the same world.
 - Shared server-controlled enemies.
-- Players attack the same mobs.
-- Shared enemy HP.
-- Shared waves and shared bosses.
-- Enemy and boss health scales upward as more players join.
-- Player movement, name, HP, weapon name, realm, score, and shooting visuals sync.
+- Players attack the same mobs with shared HP.
+- The Deep Sea Plaza is now a true online safe zone.
+- If all players are inside the plaza, the server clears/despawns enemies and pauses combat spawning.
+- Enemies spawn outside the plaza safe radius.
+- Safe players are ignored by enemy targeting.
+- Enemy and boss health scale up with player count.
+
+How to update Render:
+1. Unzip this folder.
+2. Upload/replace these files in your GitHub repo:
+   server.js
+   package.json
+   README.txt
+   public/index.html
+3. Commit changes.
+4. Render should redeploy automatically.
+5. Refresh the Render game page after deploy.
 
 Important:
-- This is still a lightweight browser co-op build, not a full MMO.
-- Browser/local account progress should survive Render redeploys.
-- The current active lobby/wave resets when Render redeploys or the server sleeps.
-- For true online accounts across devices, add a database later.
-
-How to run locally:
-1. Install Node.js.
-2. Open this folder in a terminal.
-3. Run:
-   npm install
-4. Run:
-   npm start
-5. Open:
-   http://localhost:3000
-
-How to play together:
-1. Host it on Render as a Web Service.
-2. All players open the same Render URL.
-3. Everyone enters the same lobby code, for example:
-   reef
-4. Up to 6 players can join that lobby.
-
-Render settings:
-- Service type: Web Service
-- Runtime: Node
-- Build command: npm install
-- Start command: npm start
-- Instance type: Free
-
-Notes:
-- Free Render can sleep after inactivity. The first load may take time.
-- For 6 players, Free Render may lag if there are too many enemies. If that happens, reduce enemy count or use a paid instance.
+- Browser/local account progress should survive this update.
+- Active lobby/wave resets after redeploy.

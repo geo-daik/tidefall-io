@@ -1095,6 +1095,16 @@
     ui: null
   };
 
+
+  function isClientInDeepSeaSafe() {
+    if (!state || !state.player || state.mode !== 'playing') return false;
+    const realm = String(state.realm || '').toLowerCase();
+    const cx = world.w / 2;
+    const cy = world.h / 2;
+    return (realm === 'deepsea' || realm === 'deep sea' || realm === '') &&
+      Math.hypot(state.player.x - cx, state.player.y - cy) < 760;
+  }
+
   function initMultiplayerUI() {
     const panel = document.createElement('div');
     panel.className = 'mp-panel';
@@ -1212,6 +1222,12 @@
       }
 
       if (msg.type === 'sharedState') {
+        if (isClientInDeepSeaSafe()) {
+          multiplayer.sharedEnemies = [];
+          multiplayer.sharedRemaining = 0;
+          multiplayer.sharedTotal = 1;
+          return;
+        }
         multiplayer.sharedEnemies = Array.isArray(msg.enemies) ? msg.enemies : [];
         multiplayer.sharedWave = msg.wave || 1;
         multiplayer.sharedRemaining = msg.remaining || multiplayer.sharedEnemies.length;
@@ -1243,6 +1259,18 @@
 
       if (msg.type === 'playerHurt') {
         if (state.mode === 'playing' && msg.id === multiplayer.id) damagePlayer(msg.amount || 4, { name: msg.source || 'a shared mob' });
+        return;
+      }
+
+
+      if (msg.type === 'safePlazaClear') {
+        multiplayer.sharedEnemies = [];
+        multiplayer.sharedRemaining = 0;
+        multiplayer.sharedTotal = 1;
+        if (isClientInDeepSeaSafe()) {
+          state.enemies.length = 0;
+          state.enemiesToSpawn = 0;
+        }
         return;
       }
 
@@ -1315,13 +1343,14 @@
         weapon: currentWeapon().name,
         realm: state.realm || (state.inDungeon ? 'Space Rift' : 'Deep Sea'),
         wave: state.wave,
-        score: Math.floor(state.score)
+        score: Math.floor(state.score),
+        safe: isClientInDeepSeaSafe()
       }
     });
   }
 
   function multiplayerSendShot(angle, weaponId) {
-    if (!multiplayer.connected || state.mode !== 'playing') return;
+    if (!multiplayer.connected || state.mode !== 'playing' || isClientInDeepSeaSafe()) return;
     sendMultiplayer({
       type: 'playerShot',
       x: Math.round(state.player.x),
@@ -1391,6 +1420,7 @@
 
 
   function drawSharedEnemies() {
+    if (isClientInDeepSeaSafe()) return;
     const enemies = multiplayer.sharedEnemies || [];
     if (!enemies.length) return;
     for (const e of enemies) {
@@ -2881,6 +2911,11 @@
 
     if (multiplayer.connected) {
       // In co-op mode the server owns enemies, wave HP, and kills so both players fight the same mobs.
+      if (isClientInDeepSeaSafe()) {
+        multiplayer.sharedEnemies = [];
+        multiplayer.sharedRemaining = 0;
+        multiplayer.sharedTotal = 1;
+      }
       state.enemies.length = 0;
       state.enemiesToSpawn = 0;
       state.wave = multiplayer.sharedWave || state.wave;

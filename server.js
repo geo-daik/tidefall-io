@@ -10,6 +10,8 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const WORLD = { w: 24000, h: 5200 };
 const TICK_MS = 50;
 const BROADCAST_MS = 85;
+const SAFE_CENTER = { x: WORLD.w / 2, y: WORLD.h / 2 };
+const SAFE_RADIUS = 760;
 
 const server = http.createServer((req, res) => {
   let filePath = path.join(PUBLIC_DIR, req.url === '/' ? 'index.html' : req.url);
@@ -117,7 +119,39 @@ function averagePlayerPos(room) {
   for (const p of players) { x += p.state.x; y += p.state.y; }
   return { x: x / players.length, y: y / players.length };
 }
+
+function isSafePlayer(client) {
+  const s = client && client.state ? client.state : {};
+  const realm = String(s.realm || '').toLowerCase();
+  const x = Number(s.x), y = Number(s.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const nearPlaza = Math.hypot(x - SAFE_CENTER.x, y - SAFE_CENTER.y) < SAFE_RADIUS;
+  return (s.safe === true) || ((realm === 'deepsea' || realm === 'deep sea' || realm === '') && nearPlaza);
+}
+function combatPlayerArray(room) {
+  return playerArray(room).filter(p => !isSafePlayer(p));
+}
+function averageCombatPlayerPos(room) {
+  const players = combatPlayerArray(room);
+  if (!players.length) return { x: SAFE_CENTER.x + SAFE_RADIUS + 900, y: SAFE_CENTER.y };
+  let x = 0, y = 0;
+  for (const p of players) { x += p.state.x; y += p.state.y; }
+  return { x: x / players.length, y: y / players.length };
+}
+function pushOutOfSafeZone(pos, extra = 180) {
+  const dx = pos.x - SAFE_CENTER.x;
+  const dy = pos.y - SAFE_CENTER.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const min = SAFE_RADIUS + extra;
+  if (d >= min) return pos;
+  return {
+    x: SAFE_CENTER.x + dx / d * min,
+    y: SAFE_CENTER.y + dy / d * min
+  };
+}
+
 function startWave(room) {
+  if (combatPlayerArray(room).length === 0) return;
   room.wave += 1;
   room.enemies = [];
   room.total = Math.min(32 + room.wave * 8, 260);
@@ -147,18 +181,25 @@ function chooseType(room, forcedKind) {
 }
 function spawnEnemy(room, forcedKind = null) {
   const base = chooseType(room, forcedKind);
-  const center = averagePlayerPos(room);
+  const center = averageCombatPlayerPos(room);
   const a = rand(0, Math.PI * 2);
   const dist = base.finalBoss ? rand(900, 1300) : base.boss ? rand(700, 1050) : rand(520, 950);
   const scale = 1 + Math.max(0, room.wave - 1) * 0.12;
   const hpScale = base.finalBoss ? 1 + room.wave * .08 : base.boss ? 1 + room.wave * .055 : scale;
   const r = Math.floor(base.r * (base.finalBoss ? 1 : base.boss ? 1.04 : 1));
+  let spawn = {
+    x: clamp(center.x + Math.cos(a) * dist, 120, WORLD.w - 120),
+    y: clamp(center.y + Math.sin(a) * dist, 120, WORLD.h - 120)
+  };
+  spawn = pushOutOfSafeZone(spawn, base.boss || base.finalBoss ? 420 : 220);
+  spawn.x = clamp(spawn.x, 120, WORLD.w - 120);
+  spawn.y = clamp(spawn.y, 120, WORLD.h - 120);
   const enemy = {
     id: `${room.code}-${room.nextEnemyId++}`,
     kind: base.kind,
     name: base.name,
-    x: clamp(center.x + Math.cos(a) * dist, 120, WORLD.w - 120),
-    y: clamp(center.y + Math.sin(a) * dist, 120, WORLD.h - 120),
+    x: spawn.x,
+    y: spawn.y,
     vx: 0,
     vy: 0,
     angle: rand(0, Math.PI * 2),
@@ -270,10 +311,23 @@ function killEnemy(room, enemy) {
 }
 function updateRoom(room, dt) {
   if (room.clients.size === 0) return;
-  if (room.wave === 0) startWave(room);
   const players = playerArray(room);
+  const combatPlayers = combatPlayerArray(room);
 
-  const maxOnScreen = Math.min(28 + room.wave * 4, 125);
+  if (combatPlayers.length === 0) {
+    if (room.enemies.length || room.remainingToSpawn > 0) {
+      room.enemies = [];
+      room.remainingToSpawn = 0;
+      room.total = 0;
+      room.waveBreak = 0;
+      broadcast(room.code, { type: 'safePlazaClear' });
+    }
+    return;
+  }
+
+  if (room.wave === 0 || (room.remainingToSpawn <= 0 && room.enemies.length === 0 && room.total === 0)) startWave(room);
+
+  const maxOnScreen = Math.min(28 + room.wave * 4 + combatPlayers.length * 6, 145);
   room.spawnTimer -= dt;
   if (room.remainingToSpawn > 0 && room.spawnTimer <= 0 && room.enemies.length < maxOnScreen) {
     let burst = Math.min(2 + Math.floor(room.wave / 3), 12);
@@ -284,12 +338,12 @@ function updateRoom(room, dt) {
     room.spawnTimer = Math.max(0.08, 0.42 - room.wave * 0.008);
   }
 
-  if (!players.length) return;
+  if (!combatPlayers.length) return;
   for (const e of room.enemies) {
     e.hit = Math.max(0, e.hit - dt);
-    let target = players[0];
+    let target = combatPlayers[0];
     let best = Infinity;
-    for (const p of players) {
+    for (const p of combatPlayers) {
       const d = Math.hypot((p.state.x || 0) - e.x, (p.state.y || 0) - e.y);
       if (d < best) { best = d; target = p; }
     }
@@ -349,7 +403,7 @@ function leaveRoom(ws) {
   const room = rooms.get(ws.room);
   if (room) {
     room.clients.delete(ws);
-    broadcast(ws.room, { type: 'peerLeave', id: ws.id, count: room.clients.size });
+    broadcast(ws.room, { type: 'peerLeave', id: ws.id, count: room.clients.size, maxPlayers: MAX_PLAYERS });
     if (room.clients.size === 0) rooms.delete(ws.room);
   }
   ws.room = null;
@@ -378,8 +432,8 @@ wss.on('connection', ws => {
       const room = getRoom(roomCode);
       const name = String(msg.name || 'Player').slice(0, 18);
 
-      if (room.clients.size >= 2 && !room.clients.has(ws)) {
-        safeSend(ws, { type: 'roomFull', room: roomCode });
+      if (room.clients.size >= MAX_PLAYERS && !room.clients.has(ws)) {
+        safeSend(ws, { type: 'roomFull', room: roomCode, maxPlayers: MAX_PLAYERS });
         return;
       }
 
@@ -391,9 +445,9 @@ wss.on('connection', ws => {
       if (room.wave === 0) startWave(room);
 
       const players = [...room.clients].map(client => ({ id: client.id, name: client.name, ...(client.state || {}) }));
-      safeSend(ws, { type: 'joined', id: ws.id, room: roomCode, count: room.clients.size, players });
+      safeSend(ws, { type: 'joined', id: ws.id, room: roomCode, count: room.clients.size, maxPlayers: MAX_PLAYERS, players });
       safeSend(ws, serializeState(room));
-      broadcast(roomCode, { type: 'peerJoin', count: room.clients.size, player: { id: ws.id, name } }, ws);
+      broadcast(roomCode, { type: 'peerJoin', count: room.clients.size, maxPlayers: MAX_PLAYERS, player: { id: ws.id, name } }, ws);
       return;
     }
 
@@ -412,7 +466,8 @@ wss.on('connection', ws => {
         weapon: p.weapon,
         realm: p.realm,
         wave: p.wave,
-        score: p.score
+        score: p.score,
+        safe: p.safe === true
       };
       broadcast(ws.room, { type: 'playerUpdate', id: ws.id, player: ws.state }, ws);
       return;
