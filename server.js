@@ -43,125 +43,166 @@ const rooms = new Map();
 
 const enemyCatalog = [];
 function addEnemy(def) {
+  const roleToType = {
+    swarm:'nibber',
+    hunter:'snapper',
+    charger:'barracuda',
+    bruiser:'crab',
+    tank:'turtle',
+    tankRanged:'nautilus',
+    ranged:'angler',
+    turret:'clam',
+    weaver:'eel',
+    skirmisher:'stingray',
+    ambusher:'ghostShrimp',
+    pulse:'jelly',
+    burster:'puffer',
+    summoner:'coralSiren',
+    elite:'manta',
+    boss:'boss',
+    finalBoss:'boss'
+  };
+  const kindToType = {
+    nibber:'nibber', reefWasp:'reefWasp', snapper:'snapper', crab:'crab', eel:'eel', puffer:'puffer',
+    jelly:'jelly', barracuda:'barracuda', shark:'shark', stingray:'stingray', angler:'angler',
+    clam:'clam', urchin:'urchin', squid:'squid', ghostShrimp:'ghostShrimp', nautilus:'nautilus',
+    coralSiren:'coralSiren', sawfish:'sawfish', turtle:'turtle', manta:'manta',
+    leviathan:'boss', kraken:'boss', abyssMaw:'boss', coralTitan:'boss', stormSerpent:'boss', final:'boss'
+  };
   enemyCatalog.push({
     realm: 'reef',
     role: 'swarm',
-    type: def.kind,
+    type: def.type || kindToType[def.kind] || roleToType[def.role] || 'nibber',
     ...def
   });
 }
 
-const biomePalettes = {
-  reef: {
-    prefix: ['Reef', 'Kelp', 'Pearl', 'Tide', 'Shell', 'Lagoon', 'Coral', 'Azure'],
-    body: ['Minnow', 'Snapper', 'Crab', 'Eel', 'Jelly', 'Puffer', 'Angler', 'Manta'],
-    colors: ['#73d9ff','#76f2d1','#ffd166','#9ff7ff','#ff8d7a','#6ee7a8'],
-    types: ['fish','crab','eel','jelly','puffer','angler','manta','shark'],
-    roles: ['swarm','bruiser','weaver','pulse','burster','ranged','elite','charger']
-  },
-  space: {
-    prefix: ['Nova', 'Orbit', 'Comet', 'Star', 'Astro', 'Lunar', 'Solar', 'Cosmic'],
-    body: ['Drone', 'Wisp', 'Ray', 'Serpent', 'Skimmer', 'Meteorling', 'Watcher', 'Leaper'],
-    colors: ['#8ca7ff','#c58bff','#eaffff','#ffd166','#7f6bff','#ff86c8'],
-    types: ['starfish','jelly','ray','eel','barracuda','squid','nautilus','fish'],
-    roles: ['ranged','pulse','skirmisher','weaver','charger','summoner','tankRanged','swarm']
-  },
-  sky: {
-    prefix: ['Sky', 'Cloud', 'Tempest', 'Zephyr', 'Wing', 'Halo', 'Aero', 'Storm'],
-    body: ['Manta', 'Kite', 'Ray', 'Drifter', 'Eel', 'Shrike', 'Glider', 'Gullfish'],
-    colors: ['#b8f7ff','#ffffff','#79a7ff','#ffd166','#9ff7ff','#c5fff0'],
-    types: ['manta','fish','ray','jelly','eel','barracuda','shrimp','angler'],
-    roles: ['elite','swarm','skirmisher','pulse','weaver','charger','ambusher','ranged']
-  },
-  ember: {
-    prefix: ['Ember', 'Magma', 'Ash', 'Lava', 'Cinder', 'Furnace', 'Char', 'Blaze'],
-    body: ['Lobster', 'Urchin', 'Crab', 'Puffer', 'Snapper', 'Warden', 'Eel', 'Maw'],
-    colors: ['#ff7043','#ff5b6e','#ffd166','#ff8d7a','#ff9f43','#ff6fae'],
-    types: ['crab','urchin','puffer','fish','shark','clam','eel','squid'],
-    roles: ['bruiser','turret','burster','hunter','charger','tank','weaver','skirmisher']
-  },
-  crystal: {
-    prefix: ['Crystal', 'Prism', 'Glass', 'Quartz', 'Shard', 'Mirror', 'Opal', 'Gem'],
-    body: ['Jelly', 'Eel', 'Ray', 'Nautilus', 'Shrimp', 'Clam', 'Serpent', 'Wisp'],
-    colors: ['#eaffff','#b8f7ff','#d8b4ff','#c5fff0','#9ff7ff','#ffd166'],
-    types: ['jelly','eel','ray','nautilus','shrimp','clam','barracuda','fish'],
-    roles: ['pulse','weaver','skirmisher','tankRanged','ambusher','tank','charger','swarm']
-  },
-  void: {
-    prefix: ['Void', 'Abyss', 'Null', 'Rift', 'Shadow', 'Dread', 'Black', 'Night'],
-    body: ['Maw', 'Squid', 'Serpent', 'Wraith', 'Urchin', 'Leviathan', 'Hunter', 'Manta'],
-    colors: ['#7f6bff','#c58bff','#2d3142','#ff5b6e','#b490ff','#ff86c8'],
-    types: ['shark','squid','eel','shrimp','urchin','boss','barracuda','manta'],
-    roles: ['hunter','summoner','weaver','ambusher','turret','boss','charger','elite']
-  },
-  deepsea: {
-    prefix: ['Deep', 'Trench', 'Abyssal', 'Pressure', 'Sunken', 'Ancient', 'Midnight', 'Fossil'],
-    body: ['Angler', 'Crab', 'Nautilus', 'Eel', 'Leviathan', 'Puffer', 'Titan', 'Ray'],
-    colors: ['#0bd3d3','#76f2d1','#ffd166','#8cc7ff','#c58bff','#6ee7a8'],
-    types: ['angler','crab','nautilus','eel','boss','puffer','clam','ray'],
-    roles: ['ranged','bruiser','tankRanged','weaver','boss','burster','tank','skirmisher']
-  }
+const zoneDefs = {
+  deepsea: { label:'Deep Sea', color:'#76f2d1', mat:'scales', difficulty:1.0 },
+  reef:    { label:'Relic Reef', color:'#76f2d1', mat:'coral', difficulty:1.0 },
+  space:   { label:'Space Rift', color:'#d8b4ff', mat:'pearls', difficulty:1.25 },
+  sky:     { label:'Sky Land', color:'#9ff7ff', mat:'pearls', difficulty:1.18 },
+  ember:   { label:'Ember Trench', color:'#ff8d7a', mat:'coral', difficulty:1.35 },
+  crystal: { label:'Crystal Grotto', color:'#79a7ff', mat:'pearls', difficulty:1.42 },
+  void:    { label:'Void Abyss', color:'#ff5b6e', mat:'scales', difficulty:1.62 }
 };
 
-function biomeFromRealm(raw) {
-  const r = String(raw || '').toLowerCase().replace(/\s+/g, '');
-  if (r.includes('space')) return 'space';
-  if (r.includes('sky')) return 'sky';
-  if (r.includes('ember') || r.includes('trench')) return 'ember';
-  if (r.includes('crystal') || r.includes('grotto')) return 'crystal';
-  if (r.includes('void')) return 'void';
-  if (r.includes('deep')) return 'deepsea';
-  return 'reef';
-}
-
-function addBiomeSpecies(biome, count, baseTier = 1) {
-  const p = biomePalettes[biome] || biomePalettes.reef;
-  for (let i = 0; i < count; i++) {
-    const tier = baseTier + Math.floor(i / 10);
-    const type = p.types[i % p.types.length];
-    const role = p.roles[i % p.roles.length];
-    const bossLike = role === 'boss';
-    const elite = role === 'elite' || (tier >= 5 && i % 13 === 0);
-    addEnemy({
-      kind: `${biome}_${i}`,
-      realm: biome,
-      type,
-      role,
-      name: `${p.prefix[i % p.prefix.length]} ${p.body[(i * 5) % p.body.length]}`,
-      hp: Math.floor((bossLike ? 650 : elite ? 230 : 42) + tier * (bossLike ? 160 : elite ? 34 : 12) + (i % 7) * 7),
-      speed: Math.floor((bossLike ? 34 : role === 'charger' ? 112 : role === 'swarm' ? 118 : role === 'ambusher' ? 122 : role === 'tank' ? 42 : 76) + Math.min(45, tier * 3)),
-      r: Math.floor((bossLike ? 62 : elite ? 34 : 13) + (i % 8) * (bossLike ? 2.5 : elite ? 1.2 : .9)),
-      damage: Math.floor((bossLike ? 26 : elite ? 17 : 6) + tier * (bossLike ? 3 : elite ? 2 : 1)),
-      score: Math.floor((bossLike ? 600 : elite ? 150 : 24) + tier * 18 + i * 2),
-      xp: Math.floor((bossLike ? 80 : elite ? 28 : 5) + tier * 2),
-      color: p.colors[i % p.colors.length],
-      mat: ['pearls','coral','scales'][i % 3],
-      elite,
-      boss: bossLike,
-      finalBoss: false
-    });
-  }
-}
-
 const coreEnemies = [
-  { kind:'nibber', realm:'reef', type:'fish', role:'swarm', name:'Reef Nibber', hp:46, speed:104, r:15, damage:5, score:22, xp:5, color:'#73d9ff', mat:'pearls' },
-  { kind:'crab', realm:'reef', type:'crab', role:'bruiser', name:'Iron Crab', hp:92, speed:58, r:21, damage:8, score:38, xp:8, color:'#ff8d7a', mat:'coral' },
-  { kind:'eel', realm:'reef', type:'eel', role:'weaver', name:'Glass Eel', hp:70, speed:126, r:14, damage:7, score:42, xp:9, color:'#d8ff6e', mat:'scales' },
-  { kind:'jelly', realm:'reef', type:'jelly', role:'pulse', name:'Moon Jelly', hp:86, speed:54, r:23, damage:6, score:50, xp:10, color:'#9ff7ff', mat:'pearls' },
-  { kind:'shark', realm:'reef', type:'shark', role:'charger', name:'Razor Shark', hp:125, speed:104, r:26, damage:12, score:85, xp:15, color:'#8cc7ff', mat:'scales' },
-  { kind:'angler', realm:'deepsea', type:'angler', role:'ranged', name:'Deep Lantern Angler', hp:135, speed:70, r:25, damage:9, score:92, xp:16, color:'#ffd166', mat:'pearls' },
-  { kind:'squid', realm:'void', type:'squid', role:'summoner', name:'Ink Rift Squid', hp:125, speed:82, r:27, damage:10, score:105, xp:18, color:'#b490ff', mat:'scales' },
-  { kind:'wasp', realm:'sky', type:'barracuda', role:'charger', name:'Sky Wasp', hp:64, speed:132, r:13, damage:8, score:58, xp:11, color:'#fff275', mat:'pearls' },
-  { kind:'ray', realm:'space', type:'ray', role:'skirmisher', name:'Volt Star Ray', hp:175, speed:76, r:32, damage:14, score:135, xp:23, color:'#9ff7ff', mat:'pearls' },
-  { kind:'turtle', realm:'reef', type:'turtle', role:'tank', name:'Ancient Turtle Elite', hp:390, speed:42, r:40, damage:19, score:260, xp:42, color:'#6ee7a8', mat:'coral', elite:true },
-  { kind:'manta', realm:'sky', type:'manta', role:'elite', name:'Manta Warden Elite', hp:350, speed:74, r:38, damage:18, score:245, xp:40, color:'#ffd166', mat:'pearls', elite:true },
-  { kind:'leviathan', realm:'deepsea', type:'boss', role:'boss', name:'Leviathan Boss', hp:1450, speed:44, r:70, damage:24, score:900, xp:125, color:'#ff5b6e', mat:'scales', boss:true },
-  { kind:'kraken', realm:'void', type:'squid', role:'boss', name:'Kraken Boss', hp:2050, speed:38, r:82, damage:28, score:1250, xp:165, color:'#c58bff', mat:'pearls', boss:true },
-  { kind:'titan', realm:'ember', type:'clam', role:'boss', name:'Ember Coral Titan', hp:2650, speed:30, r:92, damage:31, score:1500, xp:205, color:'#ff6fae', mat:'coral', boss:true },
-  { kind:'final', realm:'void', type:'boss', role:'finalBoss', name:'Abyss Parliament Final Boss', hp:8200, speed:22, r:260, damage:38, score:5000, xp:650, color:'#ff5b6e', mat:'scales', boss:true, finalBoss:true }
+  { kind:'nibber', type:'nibber', realm:'reef', name:'Nibber', hp:26, speed:126, damage:9, r:14, score:18, xp:4, color:'#73d9ff', mat:'pearls', role:'swarm' },
+  { kind:'reefWasp', type:'reefWasp', realm:'reef', name:'Reef Wasp', hp:18, speed:176, damage:8, r:10, score:24, xp:5, color:'#fff06a', mat:'pearls', role:'swarm' },
+  { kind:'snapper', type:'snapper', realm:'reef', name:'Blood Snapper', hp:38, speed:148, damage:13, r:16, score:39, xp:7, color:'#ff6b6b', mat:'scales', role:'hunter' },
+  { kind:'crab', type:'crab', realm:'reef', name:'Iron Crab', hp:55, speed:82, damage:14, r:18, score:34, xp:7, color:'#ff8d7a', mat:'coral', role:'bruiser' },
+  { kind:'eel', type:'eel', realm:'reef', name:'Glass Eel', hp:34, speed:170, damage:11, r:13, score:42, xp:8, color:'#d8ff6e', mat:'scales', role:'weaver' },
+  { kind:'puffer', type:'puffer', realm:'reef', name:'Storm Puffer', hp:74, speed:62, damage:18, r:24, score:60, xp:11, color:'#c58bff', mat:'coral', role:'burster' },
+  { kind:'jelly', type:'jelly', realm:'reef', name:'Moon Jelly', hp:42, speed:76, damage:10, r:21, score:48, xp:9, color:'#9ff7ff', mat:'pearls', role:'pulse' },
+  { kind:'barracuda', type:'barracuda', realm:'reef', name:'Barracuda Spear', hp:62, speed:162, damage:18, r:20, score:78, xp:13, color:'#a3f7ff', mat:'scales', role:'charger' },
+  { kind:'shark', type:'shark', realm:'reef', name:'Razor Shark', hp:72, speed:145, damage:20, r:23, score:78, xp:13, color:'#8cc7ff', mat:'scales', role:'charger' },
+  { kind:'stingray', type:'stingray', realm:'reef', name:'Volt Stingray', hp:82, speed:94, damage:16, r:26, score:92, xp:15, color:'#79a7ff', mat:'pearls', role:'ranged' },
+  { kind:'angler', type:'angler', realm:'reef', name:'Lantern Angler', hp:66, speed:90, damage:13, r:22, score:86, xp:15, color:'#ffd166', mat:'pearls', role:'ranged' },
+  { kind:'clam', type:'clam', realm:'reef', name:'Clam Sentinel', hp:118, speed:34, damage:17, r:25, score:108, xp:18, color:'#ffe0a3', mat:'coral', role:'turret' },
+  { kind:'urchin', type:'urchin', realm:'reef', name:'Spike Urchin', hp:90, speed:46, damage:16, r:22, score:92, xp:16, color:'#ff6fae', mat:'coral', role:'turret' },
+  { kind:'squid', type:'squid', realm:'reef', name:'Ink Squid', hp:78, speed:108, damage:15, r:24, score:104, xp:18, color:'#b490ff', mat:'scales', role:'skirmisher' },
+  { kind:'ghostShrimp', type:'ghostShrimp', realm:'reef', name:'Ghost Shrimp', hp:52, speed:190, damage:14, r:15, score:112, xp:17, color:'#c5fff0', mat:'pearls', role:'ambusher' },
+  { kind:'nautilus', type:'nautilus', realm:'reef', name:'Nautilus Guard', hp:165, speed:48, damage:22, r:31, score:154, xp:26, color:'#ffb86b', mat:'coral', role:'tankRanged' },
+  { kind:'coralSiren', type:'coralSiren', realm:'reef', name:'Coral Siren', hp:128, speed:72, damage:17, r:29, score:168, xp:28, color:'#ff86c8', mat:'coral', role:'summoner', elite:true },
+  { kind:'sawfish', type:'sawfish', realm:'reef', name:'Sawfish Raider', hp:188, speed:118, damage:24, r:35, score:182, xp:31, color:'#b7f7c1', mat:'scales', role:'charger', elite:true },
+  { kind:'turtle', type:'turtle', realm:'reef', name:'Ancient Turtle', hp:210, speed:48, damage:26, r:34, score:168, xp:30, color:'#6ee7a8', mat:'coral', role:'tank', elite:true },
+  { kind:'manta', type:'manta', realm:'reef', name:'Manta Warden', hp:160, speed:96, damage:22, r:32, score:145, xp:28, color:'#ffd166', mat:'pearls', role:'elite', elite:true },
+
+  { kind:'starMite', type:'reefWasp', realm:'space', name:'Star Mite', hp:34, speed:180, damage:12, r:11, score:90, xp:12, color:'#eaffff', mat:'pearls', role:'swarm' },
+  { kind:'cometEel', type:'eel', realm:'space', name:'Comet Eel', hp:72, speed:210, damage:18, r:17, score:145, xp:18, color:'#9ff7ff', mat:'scales', role:'charger' },
+  { kind:'orbitCrab', type:'crab', realm:'space', name:'Orbit Crab', hp:120, speed:92, damage:20, r:26, score:180, xp:22, color:'#ffd166', mat:'coral', role:'tankRanged' },
+  { kind:'novaJelly', type:'jelly', realm:'space', name:'Nova Jelly', hp:95, speed:96, damage:17, r:25, score:170, xp:21, color:'#d8b4ff', mat:'pearls', role:'pulse' },
+  { kind:'meteorRay', type:'stingray', realm:'space', name:'Meteor Ray', hp:150, speed:124, damage:24, r:31, score:235, xp:29, color:'#ff8d7a', mat:'coral', role:'ranged', elite:true },
+  { kind:'voidShrimp', type:'ghostShrimp', realm:'space', name:'Void Shrimp', hp:84, speed:230, damage:21, r:16, score:210, xp:25, color:'#7f6bff', mat:'scales', role:'ambusher' },
+  { kind:'satellitePuffer', type:'puffer', realm:'space', name:'Satellite Puffer', hp:165, speed:74, damage:25, r:30, score:250, xp:32, color:'#ff6fae', mat:'coral', role:'burster', elite:true },
+  { kind:'plasmaManta', type:'manta', realm:'space', name:'Plasma Manta', hp:240, speed:122, damage:30, r:38, score:360, xp:42, color:'#79a7ff', mat:'pearls', role:'elite', elite:true },
+  { kind:'moonNautilus', type:'nautilus', realm:'space', name:'Moon Nautilus', hp:310, speed:58, damage:32, r:42, score:420, xp:50, color:'#f8f7ff', mat:'coral', role:'tankRanged', elite:true },
+  { kind:'quasarSiren', type:'coralSiren', realm:'space', name:'Quasar Siren', hp:260, speed:90, damage:29, r:36, score:455, xp:54, color:'#ff86c8', mat:'pearls', role:'summoner', elite:true },
+
+  { kind:'leviathan', type:'boss', realm:'deepsea', name:'Leviathan Mini-Boss', hp:560, speed:62, damage:30, r:56, score:650, xp:90, color:'#ff5b6e', mat:'scales', role:'boss', boss:true },
+  { kind:'kraken', type:'boss', realm:'void', name:'Kraken of the Rifts', hp:820, speed:52, damage:34, r:64, score:980, xp:135, color:'#c58bff', mat:'pearls', role:'boss', boss:true },
+  { kind:'abyssMaw', type:'boss', realm:'void', name:'Abyss Maw', hp:1040, speed:46, damage:38, r:70, score:1250, xp:165, color:'#ff8d7a', mat:'scales', role:'boss', boss:true },
+  { kind:'coralTitan', type:'boss', realm:'reef', name:'Coral Titan', hp:1350, speed:36, damage:42, r:76, score:1580, xp:205, color:'#ff6fae', mat:'coral', role:'boss', boss:true },
+  { kind:'stormSerpent', type:'boss', realm:'space', name:'Storm Serpent', hp:1160, speed:78, damage:36, r:62, score:1420, xp:190, color:'#9ff7ff', mat:'scales', role:'boss', boss:true },
+  { kind:'final', type:'boss', realm:'void', name:'Abyss Parliament Final Boss', hp:8500, speed:30, damage:45, r:260, score:5000, xp:650, color:'#ff5b6e', mat:'scales', role:'finalBoss', boss:true, finalBoss:true }
 ];
 for (const e of coreEnemies) addEnemy(e);
-for (const biome of ['reef','space','sky','ember','crystal','void','deepsea']) addBiomeSpecies(biome, 28);
+
+function addBiomeCreatures(){
+  const roles = ['swarm','charger','weaver','ranged','pulse','skirmisher','tankRanged','ambusher','summoner'];
+  const mats = ['pearls','coral','scales'];
+  const creaturePrefix = {
+    deepsea:'Trench', reef:'Reef', space:'Astral', sky:'Sky', ember:'Ember', crystal:'Crystal', void:'Void'
+  };
+  const creatureNouns = ['Fry','Wasp','Ray','Shrimp','Eel','Crab','Siren','Manta','Nautilus','Puffer','Sawfish','Warden'];
+  const roleVisual = {
+    swarm:'nibber',
+    charger:'barracuda',
+    weaver:'eel',
+    ranged:'angler',
+    pulse:'jelly',
+    skirmisher:'stingray',
+    tankRanged:'nautilus',
+    ambusher:'ghostShrimp',
+    summoner:'coralSiren'
+  };
+  for (const realm of Object.keys(zoneDefs)) {
+    for (let i=1;i<=40;i++) {
+      const role = roles[i % roles.length];
+      const tier = Math.max(1, Math.ceil(i/4));
+      addEnemy({
+        kind:`${realm}BiomeSpecies${i}`,
+        type: roleVisual[role] || 'nibber',
+        name:`${creaturePrefix[realm]} ${creatureNouns[i%creatureNouns.length]} ${i}`,
+        hp: 24 + tier*10 + i*1.8,
+        speed: 72 + (i%8)*12 + (role === 'swarm' ? 42 : 0),
+        damage: 8 + tier*2.3,
+        r: 11 + (i%9)*2.3,
+        score: 28 + i*7,
+        xp: 5 + tier*2,
+        color: zoneDefs[realm].color,
+        mat: mats[i%mats.length],
+        role,
+        tier,
+        realm,
+        elite: i % 17 === 0
+      });
+    }
+    for (let b=1;b<=7;b++) {
+      addEnemy({
+        kind:`${realm}BiomeBoss${b}`,
+        type:'boss',
+        name:`${zoneDefs[realm].label} Boss ${b}`,
+        hp: 650 + b*180 + zoneDefs[realm].difficulty*240,
+        speed: 44 + b*4,
+        damage: 25 + b*4,
+        r: 50 + b*5,
+        score: 720 + b*260,
+        xp: 105 + b*30,
+        color: zoneDefs[realm].color,
+        mat: zoneDefs[realm].mat,
+        role: b%2 ? 'boss' : 'summoner',
+        boss:true,
+        realm,
+        tier: 4 + b*2
+      });
+    }
+  }
+}
+addBiomeCreatures();
+
+function realmFromPlayerState(raw) {
+  const r = String(raw || 'deepsea').toLowerCase().replace(/\s+/g, '');
+  if (r.includes('space')) return 'space';
+  if (r.includes('sky')) return 'sky';
+  if (r.includes('ember')) return 'ember';
+  if (r.includes('crystal')) return 'crystal';
+  if (r.includes('void')) return 'void';
+  if (r.includes('reef')) return 'reef';
+  if (r.includes('deep')) return 'deepsea';
+  return 'deepsea';
+}
 
 function rand(a, b) { return Math.random() * (b - a) + a; }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -237,26 +278,26 @@ function pushOutOfSafeZone(pos, extra = 180) {
 }
 
 
-function activeRoomBiome(room) {
+function activeRoomRealm(room) {
   const players = combatPlayerArray(room);
-  if (!players.length) return 'reef';
+  if (!players.length) return 'deepsea';
   const counts = Object.create(null);
   for (const p of players) {
-    const b = biomeFromRealm(p.state && p.state.realm);
-    counts[b] = (counts[b] || 0) + 1;
+    const realm = realmFromPlayerState(p.state && p.state.realm);
+    counts[realm] = (counts[realm] || 0) + 1;
   }
-  return Object.entries(counts).sort((a,b) => b[1] - a[1])[0]?.[0] || 'reef';
+  return Object.entries(counts).sort((a,b) => b[1] - a[1])[0]?.[0] || 'deepsea';
 }
-function playerCountScale(room, boss = false) {
-  const n = Math.max(1, combatPlayerArray(room).length || room.clients.size || 1);
-  return boss ? 1 + (n - 1) * 0.48 : 1 + (n - 1) * 0.28;
+function coopHpScale(room, boss = false) {
+  const n = Math.max(1, combatPlayerArray(room).length || 1);
+  return boss ? 1 + (n - 1) * 0.52 : 1 + (n - 1) * 0.30;
 }
 
 function startWave(room) {
   if (combatPlayerArray(room).length === 0) return;
   room.wave += 1;
   room.enemies = [];
-  room.total = Math.min(24 + room.wave * 5 + combatPlayerArray(room).length * 4, 150);
+  room.total = Math.min(34 + room.wave * 8 + combatPlayerArray(room).length * 6, 260);
   room.remainingToSpawn = room.total;
   room.spawnTimer = 0.1;
   room.waveBreak = 0;
@@ -266,41 +307,34 @@ function startWave(room) {
     spawnEnemy(room, 'final');
     room.remainingToSpawn = Math.max(0, room.remainingToSpawn - 1);
   } else if (room.wave % 5 === 0) {
-    const biome = activeRoomBiome(room);
-    const bossesByBiome = {
-      reef: ['leviathan'],
-      deepsea: ['leviathan'],
-      space: ['space_5','space_13','space_21'],
-      sky: ['manta'],
-      ember: ['titan'],
-      crystal: ['crystal_5','crystal_13','crystal_21'],
-      void: ['kraken']
-    };
-    const bosses = bossesByBiome[biome] || ['leviathan', 'kraken', 'titan'];
+    const realm = activeRoomRealm(room);
+    const biomeBosses = enemyCatalog.filter(e => e.boss && !e.finalBoss && e.realm === realm).map(e => e.kind);
+    const fallbackBosses = ['leviathan', 'kraken', 'abyssMaw', 'coralTitan', 'stormSerpent'];
+    const bosses = biomeBosses.length ? biomeBosses : fallbackBosses;
     spawnEnemy(room, bosses[(Math.floor(room.wave / 5) - 1) % bosses.length]);
     room.remainingToSpawn = Math.max(0, room.remainingToSpawn - 1);
   }
 }
-
 function chooseType(room, forcedKind) {
   if (forcedKind) return enemyCatalog.find(e => e.kind === forcedKind) || enemyCatalog[0];
-  const biome = activeRoomBiome(room);
-  const pool = enemyCatalog.filter(e => {
+  const realm = activeRoomRealm(room);
+  let pool = enemyCatalog.filter(e => {
     if (e.finalBoss || e.boss) return false;
-    if (e.realm !== biome && e.realm !== 'all') return false;
-    if (e.elite) return room.wave >= 4 && Math.random() < .15;
+    if (e.realm !== realm) return false;
+    if (e.elite) return room.wave >= 3 && Math.random() < .28;
     return true;
   });
-  const max = clamp(7 + room.wave * 2, 7, pool.length);
+  if (pool.length < 10) pool = enemyCatalog.filter(e => !e.finalBoss && !e.boss && (e.realm === 'reef' || e.realm === 'deepsea'));
+  const max = clamp(12 + room.wave * 5, 12, pool.length);
   return pool[Math.floor(rand(0, max))] || enemyCatalog[0];
 }
 function spawnEnemy(room, forcedKind = null) {
   const base = chooseType(room, forcedKind);
   const center = averageCombatPlayerPos(room);
   const a = rand(0, Math.PI * 2);
-  const dist = base.finalBoss ? rand(1200, 1700) : base.boss ? rand(950, 1350) : rand(780, 1250);
-  const scale = 1 + Math.max(0, room.wave - 1) * 0.075;
-  const hpScale = (base.finalBoss ? 1 + room.wave * .065 : base.boss ? 1 + room.wave * .045 : scale) * playerCountScale(room, base.boss || base.finalBoss);
+  const dist = base.finalBoss ? rand(900, 1300) : base.boss ? rand(760, 1120) : rand(580, 980);
+  const scale = 1 + Math.max(0, room.wave - 1) * 0.10;
+  const hpScale = (base.finalBoss ? 1 + room.wave * .08 : base.boss ? 1 + room.wave * .055 : scale) * coopHpScale(room, base.boss || base.finalBoss);
   const r = Math.floor(base.r * (base.finalBoss ? 1 : base.boss ? 1.04 : 1));
   let spawn = {
     x: clamp(center.x + Math.cos(a) * dist, 120, WORLD.w - 120),
@@ -312,6 +346,10 @@ function spawnEnemy(room, forcedKind = null) {
   const enemy = {
     id: `${room.code}-${room.nextEnemyId++}`,
     kind: base.kind,
+    type: base.type || 'nibber',
+    role: base.role || 'swarm',
+    realm: base.realm || activeRoomRealm(room),
+    tier: base.tier || 1,
     name: base.name,
     x: spawn.x,
     y: spawn.y,
@@ -321,8 +359,8 @@ function spawnEnemy(room, forcedKind = null) {
     r,
     hp: Math.floor(base.hp * hpScale),
     maxHp: Math.floor(base.hp * hpScale),
-    speed: Math.floor(base.speed * (1 + room.wave * .006)),
-    damage: Math.floor(base.damage * (1 + room.wave * .014)),
+    speed: Math.floor(base.speed * (1 + room.wave * .010)),
+    damage: Math.floor(base.damage * (1 + room.wave * .020)),
     score: Math.floor(base.score * (1 + room.wave * .08)),
     xp: Math.floor(base.xp * (1 + room.wave * .06)),
     color: base.color,
@@ -394,7 +432,16 @@ function rarityByWave(wave, boss) {
 }
 function rewardItem(room, e) {
   const types = ['relic','core','shard','gem','rune'];
-  const names = ['Co-op Pearl Lens','Shared Tide Cog','Abyss Sync Shard','Twin Rift Rune','Leviathan Circuit','Coral Signal Gem','Party Relic'];
+  const namesByRealm = {
+    deepsea:['Abyss Relic','Trench Core','Pressure Sigil','Midnight Shard'],
+    reef:['Coral Relic','Pearl Lens','Kelp Charm','Shell Compass'],
+    space:['Nova Core','Comet Sigil','Orbit Lens','Gravity Shard'],
+    sky:['Cloud Relic','Zephyr Lens','Aether Charm','Halo Shard'],
+    ember:['Magma Core','Ash Sigil','Basalt Charm','Molten Shard'],
+    crystal:['Prism Relic','Quartz Lens','Mirror Core','Sapphire Shard'],
+    void:['Void Sigil','Eclipse Core','Rift Rune','Umbral Shard']
+  };
+  const names = namesByRealm[e.realm] || namesByRealm.deepsea;
   return {
     type: types[Math.floor(rand(0, types.length))],
     rarity: rarityByWave(room.wave, e.boss || e.finalBoss),
@@ -442,15 +489,15 @@ function updateRoom(room, dt) {
 
   if (room.wave === 0 || (room.remainingToSpawn <= 0 && room.enemies.length === 0 && room.total === 0)) startWave(room);
 
-  const maxOnScreen = Math.min(18 + room.wave * 3 + combatPlayers.length * 5, 95);
+  const maxOnScreen = Math.min(42 + room.wave * 6 + combatPlayers.length * 8, 170);
   room.spawnTimer -= dt;
   if (room.remainingToSpawn > 0 && room.spawnTimer <= 0 && room.enemies.length < maxOnScreen) {
-    let burst = Math.min(1 + Math.floor(room.wave / 4), 6);
+    let burst = Math.min(3 + Math.floor(room.wave / 3), 14);
     while (burst-- > 0 && room.remainingToSpawn > 0 && room.enemies.length < maxOnScreen) {
       spawnEnemy(room);
       room.remainingToSpawn--;
     }
-    room.spawnTimer = Math.max(0.16, 0.72 - room.wave * 0.006);
+    room.spawnTimer = Math.max(0.07, 0.36 - room.wave * 0.006);
   }
 
   if (!combatPlayers.length) return;
@@ -476,9 +523,9 @@ function updateRoom(room, dt) {
     const ax = dx / len + avoid.x * 1.6;
     const ay = dy / len + avoid.y * 1.6;
     const al = Math.hypot(ax, ay) || 1;
-    const speed = e.speed * (e.finalBoss ? .38 : e.boss ? .56 : e.elite ? .78 : .72);
-    e.vx = e.vx * Math.pow(.035, dt) + ax / al * speed * dt * 4.2;
-    e.vy = e.vy * Math.pow(.035, dt) + ay / al * speed * dt * 4.2;
+    const speed = e.speed * (e.finalBoss ? .50 : e.boss ? .70 : e.elite ? .90 : .84);
+    e.vx = e.vx * Math.pow(.05, dt) + ax / al * speed * dt * 5.6;
+    e.vy = e.vy * Math.pow(.05, dt) + ay / al * speed * dt * 5.6;
     e.x = clamp(e.x + e.vx * dt, e.r, WORLD.w - e.r);
     e.y = clamp(e.y + e.vy * dt, e.r, WORLD.h - e.r);
     e.angle = Math.atan2(e.vy || dy, e.vx || dx);
@@ -486,7 +533,7 @@ function updateRoom(room, dt) {
     if (best < e.r + 22) {
       const now = Date.now();
       if (!target.nextHurtAt || now >= target.nextHurtAt) {
-        target.nextHurtAt = now + (e.finalBoss ? 1450 : e.boss ? 1100 : e.elite ? 850 : 760);
+        target.nextHurtAt = now + (e.finalBoss ? 1000 : e.boss ? 820 : 650);
         safeSend(target, { type:'playerHurt', id: target.id, amount: e.damage, source: e.name });
       }
     }

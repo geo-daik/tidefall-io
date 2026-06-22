@@ -1,29 +1,28 @@
-Tidefall.io — 6 Player Shared-Enemy Co-op, Biome Creature Fix
+Tidefall.io — 6 Player Co-op, Old Biomes Restored
 
-This patch fixes the problem where co-op enemies looked too similar/player-like and rushed too fast.
+This build keeps the stable 6-player shared-enemy multiplayer, but restores the old creature model system and biome pools.
 
 Fixes:
-- Shared co-op mobs now use real creature rendering instead of one generic enemy shape.
-- Each biome now has its own co-op creature catalog:
-  Reef, Deep Sea, Space, Sky, Ember, Crystal, and Void.
-- The server chooses enemies based on the players' current biome.
-- Enemy movement speed has been reduced.
-- Contact damage cooldown is slower, so mobs do not instantly shred players.
-- Spawns happen farther away from players and outside the plaza safe zone.
-- Spawn bursts and max on-screen mobs have been reduced for less dogpiling.
-- 6-player shared enemies and shared HP remain enabled.
+- Removed the bad generic co-op mob rendering.
+- Re-added old creature visuals: fish, crab, eel, puffer, jelly, shark, angler, urchin, squid, turtle, manta, barracuda, stingray, clam, nautilus, shrimp, siren, bosses, and final bosses.
+- Re-added old biome creature pools:
+  Deep Sea, Reef, Space, Sky, Ember, Crystal, Void.
+- The server now sends each enemy's old model type/role/realm to the browser.
+- Biomes should spawn their own creature families again.
+- Spawn amount is back up: bigger waves and more mobs on screen.
+- 6-player lobby, shared enemy HP, shared waves, and safe plaza are still enabled.
 
 How to update Render:
 1. Unzip this build.
-2. Replace the GitHub repo files with:
+2. Replace your GitHub repo files with:
    server.js
    package.json
    README.txt
    public/index.html
 3. Commit changes.
-4. Render redeploys automatically, or use Manual Deploy → Deploy latest commit.
+4. Let Render redeploy, or click Manual Deploy → Deploy latest commit.
 5. Hard refresh the game page after deploy.
 
 Progress:
-- Browser/local account progress should survive.
-- Active online lobby/waves reset after redeploy.
+- Local/browser accounts should survive.
+- Active lobby/wave resets after redeploy.
